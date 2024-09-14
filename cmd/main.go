@@ -1,10 +1,12 @@
 package main
 
 import (
+	"code-hw/internal/yandexSpeller"
 	"context"
 	"database/sql"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"code-hw/internal/auth"
@@ -16,7 +18,11 @@ import (
 )
 
 func main() {
-	connStr := "postgres://user:password@db:5432/basa?sslmode=disable"
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		log.Fatalln("Не задан параметр DATABASE_URL")
+		return
+	}
 
 	db, err := connectToDB(connStr)
 	if err != nil {
@@ -24,31 +30,28 @@ func main() {
 	}
 	defer db.Close()
 
-	store := storage.NewStorage(db)
-
-	// Выполнение миграций
-	err = storage.RunMigrations(store.DB)
-	if err != nil {
-		log.Fatalf("Ошибка выполнения SQL запроса: %v", err)
-	}
+	store := storage.NewSqlStorage(db)
 
 	router := mux.NewRouter()
 
 	router.Use(logging.LogRequest)
 	router.Use(auth.BasicAuth(store))
 
+	sp := yandexSpeller.NewSpeller()
+	h := notes.NewHandler(store, sp)
+
 	router.HandleFunc("/notes", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 
-		notes.GetNotesHandler(w, r, store, ctx)
+		h.GetNotes(ctx, w, r)
 	}).Methods("GET")
 
 	router.HandleFunc("/notes", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 
-		notes.AddNoteHandler(w, r, store, ctx)
+		h.AddNote(ctx, w, r)
 	}).Methods("POST")
 
 	log.Println("Сервер запущен :8080")

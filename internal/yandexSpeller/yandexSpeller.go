@@ -1,6 +1,7 @@
 package yandexSpeller
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,11 +13,23 @@ type SpellCheckResult struct {
 	Suggestions []string `json:"s"`
 }
 
-func CheckSpelling(text string) ([]SpellCheckResult, error) {
+type speller struct {
+	client *http.Client
+}
+
+func NewSpeller() Speller {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	return &speller{client: &http.Client{Transport: tr}}
+}
+
+func (s *speller) CheckSpelling(text string) ([]SpellCheckResult, error) {
 	apiUrl := "https://speller.yandex.net/services/spellservice.json/checkText"
 	reqUrl := fmt.Sprintf("%s?text=%s", apiUrl, url.QueryEscape(text))
 
-	resp, err := http.Get(reqUrl)
+	resp, err := s.client.Get(reqUrl)
+
 	if err != nil {
 		return nil, err
 	}

@@ -25,7 +25,7 @@ func TestAddNote(t *testing.T) {
 			AddRow(1, "Test note", time.Now()))
 
 	// Создаем экземпляр Storage с mock-базой данных
-	store := storage.NewStorage(db)
+	store := storage.NewSqlStorage(db)
 
 	// Выполняем тестируемую функцию
 	ctx := context.Background()

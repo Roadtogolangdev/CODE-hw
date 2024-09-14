@@ -1,34 +1,28 @@
 package storage
 
 import (
-	"code-hw/internal/auth"
+	"code-hw/internal/models"
 	"context"
 	"database/sql"
 	"fmt"
 	_ "github.com/jackc/pgx/v4/stdlib" // драйвер для работы с PostgreSQL
 	_ "github.com/lib/pq"
-	"time"
 )
 
-type Storage struct {
+type SqlStorage struct {
 	DB *sql.DB
 }
 
 // Note - структура заметки
-type Note struct {
-	ID        int       `json:"id"`
-	Text      string    `json:"text"`
-	CreatedAt time.Time `json:"created_at"`
-}
 
 // NewStorage создает новый экземпляр Storage с уже установленным подключением
-func NewStorage(db *sql.DB) *Storage {
-	return &Storage{DB: db}
+func NewSqlStorage(db *sql.DB) Storage {
+	return &SqlStorage{DB: db}
 }
 
 // GetUserByUsername получает пользователя из базы данных по имени
-func (s *Storage) GetUserByUsername(username string) (*auth.User, error) {
-	var user auth.User
+func (s *SqlStorage) GetUserByUsername(username string) (*models.User, error) {
+	var user models.User
 	query := `SELECT id, username, password FROM users WHERE username = $1`
 	err := s.DB.QueryRow(query, username).Scan(&user.ID, &user.Username, &user.Password)
 	if err != nil {
@@ -42,29 +36,29 @@ func (s *Storage) GetUserByUsername(username string) (*auth.User, error) {
 }
 
 // AddNote - добавление новой заметки в базу данных
-func (s *Storage) AddNote(ctx context.Context, text string) (Note, error) {
-	var note Note
-	query := `INSERT INTO notes (text) VALUES ($1) RETURNING id, text, created_at`
+func (s *SqlStorage) AddNote(ctx context.Context, text string, userId int) (models.Note, error) {
+	var note models.Note
+	query := `INSERT INTO notes (text, user_id) VALUES ($1, $2) RETURNING id, text, user_id, created_at`
 
-	err := s.DB.QueryRowContext(ctx, query, text).Scan(&note.ID, &note.Text, &note.CreatedAt)
+	err := s.DB.QueryRowContext(ctx, query, text, userId).Scan(&note.ID, &note.Text, &note.UserID, &note.CreatedAt)
 	if err != nil {
-		return Note{}, fmt.Errorf("error inserting note: %w", err)
+		return models.Note{}, fmt.Errorf("error inserting note: %w", err)
 	}
 
 	return note, nil
 }
 
 // GetNotes - получение всех заметок из базы данных
-func (s *Storage) GetNotes(ctx context.Context) ([]Note, error) {
-	rows, err := s.DB.QueryContext(ctx, `SELECT id, text, created_at FROM notes`)
+func (s *SqlStorage) GetNotes(ctx context.Context, userId int) ([]models.Note, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT id, text, created_at FROM notes where user_id = $1`, userId)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving notes: %w", err)
 	}
 	defer rows.Close()
 
-	var notes []Note
+	var notes []models.Note
 	for rows.Next() {
-		var note Note
+		var note models.Note
 		if err := rows.Scan(&note.ID, &note.Text, &note.CreatedAt); err != nil {
 			return nil, fmt.Errorf("error scanning note: %w", err)
 		}
@@ -75,15 +69,15 @@ func (s *Storage) GetNotes(ctx context.Context) ([]Note, error) {
 }
 
 // GetNoteByID - получение заметки по ID
-func (s *Storage) GetNoteByID(ctx context.Context, id int) (Note, error) {
-	var note Note
+func (s *SqlStorage) GetNoteByID(ctx context.Context, id int) (models.Note, error) {
+	var note models.Note
 	query := `SELECT id, text, created_at FROM notes WHERE id = $1`
 	err := s.DB.QueryRowContext(ctx, query, id).Scan(&note.ID, &note.Text, &note.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return Note{}, fmt.Errorf("note not found")
+			return models.Note{}, fmt.Errorf("note not found")
 		}
-		return Note{}, fmt.Errorf("error retrieving note: %w", err)
+		return models.Note{}, fmt.Errorf("error retrieving note: %w", err)
 	}
 
 	return note, nil

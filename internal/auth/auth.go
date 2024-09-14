@@ -1,24 +1,15 @@
 package auth
 
 import (
+	"code-hw/internal/storage"
+	"context"
 	"encoding/base64"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"strings"
 )
 
-type User struct {
-	ID       int
-	Username string
-	Password string
-}
-
-type Storage interface {
-	GetUserByUsername(username string) (*User, error)
-}
-
-// TODO реализовать авторизацию
-func BasicAuth(storage Storage) func(http.Handler) http.Handler {
+func BasicAuth(storage storage.Storage) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -42,7 +33,6 @@ func BasicAuth(storage Storage) func(http.Handler) http.Handler {
 			}
 			username, password := pair[0], pair[1]
 
-			// Проверяем логин и пароль
 			user, err := storage.GetUserByUsername(username)
 			if err != nil {
 				http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
@@ -53,7 +43,9 @@ func BasicAuth(storage Storage) func(http.Handler) http.Handler {
 				return
 			}
 
-			next.ServeHTTP(w, r)
+			newCtx := context.WithValue(r.Context(), "userID", user.ID)
+
+			next.ServeHTTP(w, r.WithContext(newCtx))
 		})
 	}
 }

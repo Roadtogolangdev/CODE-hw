@@ -5,13 +5,13 @@ services:
     image: postgres:14
     container_name: postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 12345
-      POSTGRES_DB: basa
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=12345
+      - POSTGRES_DB=basa
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
   app:
     build: .
@@ -21,7 +21,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: postgres://user:password@db:5432/basa?sslmode=disable
+      DATABASE_URL: postgres://postgres:12345@db:5432/basa?sslmode=disable
     command: ["/main"]
 
 volumes:
