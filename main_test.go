@@ -18,18 +18,18 @@ func TestAddNote(t *testing.T) {
 	defer db.Close()
 
 	// Ожидаем запрос для добавления заметки
-	query := `INSERT INTO notes \(text\) VALUES \(\$1\) RETURNING id, text, created_at`
+	query := `INSERT INTO notes \(text, user_id\) VALUES \(\$1, \$2\) RETURNING id, text, user_id, created_at`
 	mock.ExpectQuery(query).
-		WithArgs("Test note").
-		WillReturnRows(sqlmock.NewRows([]string{"id", "text", "created_at"}).
-			AddRow(1, "Test note", time.Now()))
+		WithArgs("Test note", 123).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "text", "user_id", "created_at"}).
+			AddRow(1, "Test note", 123, time.Now()))
 
 	// Создаем экземпляр Storage с mock-базой данных
 	store := storage.NewSqlStorage(db)
 
 	// Выполняем тестируемую функцию
 	ctx := context.Background()
-	note, err := store.AddNote(ctx, "Test note")
+	note, err := store.AddNote(ctx, "Test note", 123)
 
 	// Проверяем, что ошибок не было
 	assert.NoError(t, err)
