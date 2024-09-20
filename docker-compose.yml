@@ -24,5 +24,23 @@ services:
       DATABASE_URL: postgres://postgres:12345@db:5432/basa?sslmode=disable
     command: ["/main"]
 
+  elasticsearch:
+    image: localhost:5000/elasticsearch:7.9.3
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - discovery.type=single-node
+
+  logstash:
+      image: localhost:5000/logstash:7.9.3
+      ports:
+        - "5044:5044"
+
+  kibana:
+      image: localhost:5000/kibana:7.9.3
+      ports:
+        - "5601:5601"
+
 volumes:
   db_data:

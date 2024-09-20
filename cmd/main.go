@@ -4,6 +4,7 @@ import (
 	"code-hw/internal/yandexSpeller"
 	"context"
 	"database/sql"
+	"github.com/sirupsen/logrus"
 	"log"
 	"net/http"
 	"os"
@@ -40,7 +41,18 @@ func main() {
 	sp := yandexSpeller.NewSpeller()
 	h := notes.NewHandler(store, sp)
 
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.JSONFormatter{})
+
+	// Пример логирования
+
 	router.HandleFunc("/notes", func(w http.ResponseWriter, r *http.Request) {
+
+		logger.WithFields(logrus.Fields{
+			"method": r.Method,
+			"path":   r.URL.Path,
+		}).Info("Добавление новой заметки")
+
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
 
